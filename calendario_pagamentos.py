@@ -36,15 +36,12 @@ def formatar_real(valor):
         return "R$ 0,00"
 
 def nome_mes_pt(mes):
-    meses = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
-    }
-    return meses.get(mes, "")
+    meses = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",
+             9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+    return meses.get(mes,"")
 
 def nomes_dias_semana():
-    return ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+    return ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
 
 st.title("💰 Calendário de Pagamentos")
 
@@ -54,15 +51,12 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df['data_vencimento'] = pd.to_datetime(df['data_vencimento'], errors='coerce')
     df['data_pagamento'] = pd.to_datetime(df['data_pagamento'], errors='coerce')
-    df = df[(df['data_vencimento'].notna()) & (df['status_consolidado'] != 'Cancelado')].copy()
+    df = df[(df['data_vencimento'].notna()) & (df['status_consolidado']!="Cancelado")].copy()
 
-    col1, col2, col3 = st.columns([1,1,3])
+    col1,col2,col3 = st.columns([1,1,3])
     anos_disponiveis = sorted(df['data_vencimento'].dt.year.unique())
-
-    with col1:
-        ano_selecionado = st.selectbox("Ano", anos_disponiveis, index=len(anos_disponiveis)-1)
-    with col2:
-        mes_selecionado = st.selectbox("Mês", range(1,13), format_func=nome_mes_pt, index=datetime.now().month-1)
+    with col1: ano_selecionado = st.selectbox("Ano", anos_disponiveis, index=len(anos_disponiveis)-1)
+    with col2: mes_selecionado = st.selectbox("Mês", range(1,13), format_func=nome_mes_pt, index=datetime.now().month-1)
 
     df_mes = df[(df['data_vencimento'].dt.year==ano_selecionado) & (df['data_vencimento'].dt.month==mes_selecionado)].copy()
 
@@ -74,7 +68,7 @@ if uploaded_file:
     qtd_a_pagar = len(df_a_pagar)
     qtd_pago = len(df_pago)
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1,col2,col3,col4 = st.columns(4)
     with col1: st.markdown(f"<div class='stats-card'><div class='stats-label'>Total a Pagar</div><div class='stats-value pagar-color'>{formatar_real(total_a_pagar)}</div></div>", unsafe_allow_html=True)
     with col2: st.markdown(f"<div class='stats-card'><div class='stats-label'>Total Pago</div><div class='stats-value pago-color'>{formatar_real(total_pago)}</div></div>", unsafe_allow_html=True)
     with col3: st.markdown(f"<div class='stats-card'><div class='stats-label'>Títulos a Pagar</div><div class='stats-value pagar-color'>{qtd_a_pagar}</div></div>", unsafe_allow_html=True)
@@ -91,7 +85,6 @@ if uploaded_file:
     hoje = datetime.now().date()
     if 'dia_selecionado' not in st.session_state: st.session_state.dia_selecionado = None
 
-    # Renderizar semanas com botão abaixo
     for semana in cal:
         cols = st.columns(7)
         for i,dia in enumerate(semana):
@@ -101,7 +94,6 @@ if uploaded_file:
                 else:
                     data_dia = datetime(ano_selecionado, mes_selecionado, dia).date()
                     classe_hoje = "today" if data_dia==hoje else ""
-
                     lanc_dia = df_mes[df_mes['data_vencimento'].dt.date==data_dia]
                     lanc_pagar = lanc_dia[lanc_dia['status_consolidado']=='A Pagar']
                     lanc_pago = lanc_dia[lanc_dia['status_consolidado']=='Pago']
@@ -115,17 +107,14 @@ if uploaded_file:
                     if qtd_dia_pagar>0: html_dia += f'<span class="summary-pagar">🔴 {qtd_dia_pagar} • {formatar_real(total_dia_pagar)}</span>'
                     if qtd_dia_pago>0: html_dia += f'<span class="summary-pago">🟢 {qtd_dia_pago} • {formatar_real(total_dia_pago)}</span>'
                     html_dia += "</div></div>"
-
                     st.markdown(html_dia, unsafe_allow_html=True)
 
-                    # Botão de detalhes abaixo
                     if st.button("📅 Ver detalhes", key=f"btn_{ano_selecionado}_{mes_selecionado}_{dia}"):
                         st.session_state.dia_selecionado = data_dia
                         st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Detalhes do dia
     if st.session_state.dia_selecionado:
         data_sel = st.session_state.dia_selecionado
         st.markdown("---")
@@ -137,7 +126,6 @@ if uploaded_file:
                 st.rerun()
 
         contas_dia = df_mes[df_mes['data_vencimento'].dt.date==data_sel]
-
         if len(contas_dia)>0:
             for _, conta in contas_dia.iterrows():
                 status = conta['status_consolidado']
@@ -148,8 +136,10 @@ if uploaded_file:
                 planejamento = conta['descricao_planejamento'] if pd.notna(conta['descricao_planejamento']) else ""
                 observacao = conta['observacao'] if pd.notna(conta['observacao']) else ""
 
+                # CORREÇÃO: cada um independente
                 observacao_html = f'<div style="color:#666;font-size:12px;margin-top:4px;font-style:italic;">{observacao}</div>' if observacao.strip() else ''
                 planejamento_html = f'<div style="color:#444;font-size:12px;margin-top:2px;font-style:italic;">📌 Planejamento: {planejamento}</div>' if planejamento.strip() else ''
+                detalhes_html = observacao_html + planejamento_html
 
                 if status=='Pago':
                     valor = formatar_real(conta['valor_pago_total'])
@@ -166,8 +156,7 @@ if uploaded_file:
                         <div style="flex:1;">
                             <div style="font-weight:bold;color:#1976d2;font-size:16px;">{fornecedor}</div>
                             <div style="color:#666;font-size:13px;margin-top:4px;">📄 Doc: {documento} • 💳 Conta: {conta_financeira}</div>
-                            {observacao_html}
-                            {planejamento_html}
+                            {detalhes_html}
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size:12px;color:{cor_status};font-weight:600;">{status_texto}</div>
