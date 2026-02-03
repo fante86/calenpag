@@ -1,146 +1,130 @@
 import streamlit as st
 import pandas as pd
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime
 import locale
 
 # Configuração da página
 st.set_page_config(page_title="Calendário de Pagamentos", layout="wide", page_icon="💰")
 
-# Tentar configurar locale para português
-try:
-    locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
-except:
-    try:
-        locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
-    except:
-        pass
-
 # CSS customizado
 st.markdown("""
 <style>
     .main {
-        background-color: #f5f5f5;
+        background-color: #f8f9fa;
+        padding-top: 1rem;
     }
     .calendar-container {
         background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-top: 1rem;
     }
     .calendar-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 15px;
+        padding: 12px;
         text-align: center;
         font-weight: bold;
-        font-size: 24px;
-        border-radius: 8px 8px 0 0;
-        margin-bottom: 20px;
+        font-size: 20px;
+        border-radius: 6px;
+        margin-bottom: 10px;
     }
     .day-header {
         background-color: #667eea;
         color: white;
-        padding: 10px;
+        padding: 8px 4px;
         text-align: center;
         font-weight: bold;
+        font-size: 13px;
         border: 1px solid #5568d3;
     }
     .calendar-day {
-        border: 1px solid #e0e0e0;
-        padding: 8px;
-        min-height: 120px;
+        border: 1px solid #dee2e6;
+        padding: 6px;
+        min-height: 80px;
+        max-height: 80px;
         background-color: white;
-        position: relative;
+        cursor: pointer;
+        transition: all 0.2s;
+        overflow: hidden;
+    }
+    .calendar-day:hover {
+        background-color: #f8f9fa;
+        border-color: #667eea;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
     }
     .day-number {
         font-weight: bold;
-        font-size: 16px;
+        font-size: 14px;
         color: #333;
-        margin-bottom: 5px;
-        position: sticky;
-        top: 0;
-        background-color: white;
-        padding: 2px 0;
+        margin-bottom: 4px;
     }
     .today {
-        background-color: #fff9c4 !important;
+        background-color: #fff9e6 !important;
+        border: 2px solid #ffc107 !important;
     }
-    .item-pagar {
-        background-color: #ffebee;
-        border-left: 3px solid #f44336;
-        padding: 6px;
-        margin: 3px 0;
-        border-radius: 3px;
-        font-size: 11px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .item-pagar:hover {
-        background-color: #ffcdd2;
-        transform: translateX(2px);
-    }
-    .item-pago {
-        background-color: #e8f5e9;
-        border-left: 3px solid #4caf50;
-        padding: 6px;
-        margin: 3px 0;
-        border-radius: 3px;
-        font-size: 11px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .item-pago:hover {
-        background-color: #c8e6c9;
-        transform: translateX(2px);
-    }
-    .fornecedor {
-        font-weight: bold;
-        color: #1976d2;
-        display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .valor {
-        font-weight: bold;
-        color: #d32f2f;
-        font-size: 12px;
-    }
-    .valor-pago {
-        font-weight: bold;
-        color: #388e3c;
-        font-size: 12px;
-    }
-    .documento {
-        color: #666;
+    .day-summary {
         font-size: 10px;
+        margin-top: 4px;
+    }
+    .summary-pagar {
+        background-color: #ffebee;
+        color: #c62828;
+        padding: 2px 4px;
+        border-radius: 3px;
         display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        margin: 2px 0;
+        font-weight: 600;
+    }
+    .summary-pago {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        padding: 2px 4px;
+        border-radius: 3px;
+        display: block;
+        margin: 2px 0;
+        font-weight: 600;
     }
     .stats-card {
         background: white;
-        padding: 20px;
+        padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         text-align: center;
+        height: 100%;
     }
     .stats-value {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: bold;
-        margin: 10px 0;
+        margin: 8px 0;
     }
     .stats-label {
         color: #666;
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 500;
     }
     .pagar-color {
-        color: #f44336;
+        color: #d32f2f;
     }
     .pago-color {
-        color: #4caf50;
+        color: #388e3c;
+    }
+    .conta-item {
+        background-color: #f8f9fa;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 6px;
+        border-left: 4px solid;
+    }
+    .conta-pagar {
+        border-left-color: #f44336;
+        background-color: #ffebee;
+    }
+    .conta-paga {
+        border-left-color: #4caf50;
+        background-color: #e8f5e9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -165,11 +149,11 @@ def nome_mes_pt(mes):
 def nomes_dias_semana():
     return ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
-# Título
-st.title("📅 Calendário de Pagamentos")
+# Título compacto
+st.title("💰 Calendário de Pagamentos")
 
 # Upload de arquivo
-uploaded_file = st.file_uploader("📂 Faça upload do arquivo CSV", type=['csv'])
+uploaded_file = st.file_uploader("📂 Upload do CSV", type=['csv'], label_visibility="collapsed")
 
 if uploaded_file is not None:
     # Ler o CSV
@@ -179,23 +163,29 @@ if uploaded_file is not None:
     df['data_vencimento'] = pd.to_datetime(df['data_vencimento'], errors='coerce')
     df['data_pagamento'] = pd.to_datetime(df['data_pagamento'], errors='coerce')
     
-    # Filtrar apenas registros com data de vencimento válida
-    df = df[df['data_vencimento'].notna()]
+    # Filtrar apenas registros válidos (não cancelados e com data de vencimento)
+    df = df[
+        (df['data_vencimento'].notna()) & 
+        (df['status_consolidado'] != 'C')  # Excluir cancelados
+    ].copy()
     
-    # Seleção de mês e ano
-    col1, col2 = st.columns(2)
+    # Criar coluna de status simplificado
+    df['status_simples'] = df['status_consolidado'].map({
+        'A': 'A Pagar',
+        'F': 'Pago'
+    })
     
-    # Obter range de datas disponíveis
-    min_date = df['data_vencimento'].min()
-    max_date = df['data_vencimento'].max()
+    # Seleção de mês e ano em uma linha
+    col1, col2, col3 = st.columns([1, 1, 3])
+    
+    anos_disponiveis = sorted(df['data_vencimento'].dt.year.unique())
     
     with col1:
-        anos_disponiveis = sorted(df['data_vencimento'].dt.year.unique())
-        ano_selecionado = st.selectbox("📅 Ano", anos_disponiveis, 
+        ano_selecionado = st.selectbox("Ano", anos_disponiveis, 
                                         index=len(anos_disponiveis)-1 if anos_disponiveis else 0)
     
     with col2:
-        mes_selecionado = st.selectbox("📅 Mês", range(1, 13), 
+        mes_selecionado = st.selectbox("Mês", range(1, 13), 
                                         format_func=lambda x: nome_mes_pt(x),
                                         index=datetime.now().month - 1)
     
@@ -205,15 +195,19 @@ if uploaded_file is not None:
         (df['data_vencimento'].dt.month == mes_selecionado)
     ].copy()
     
-    # Estatísticas
-    st.markdown("---")
+    # Calcular estatísticas CORRETAS
+    # A Pagar: status_consolidado = 'A' e usar valor_em_aberto
+    df_a_pagar = df_mes[df_mes['status_consolidado'] == 'A']
+    total_a_pagar = df_a_pagar['valor_em_aberto'].sum()
+    qtd_a_pagar = len(df_a_pagar)
     
+    # Pago: status_consolidado = 'F' e usar valor_pago_total
+    df_pago = df_mes[df_mes['status_consolidado'] == 'F']
+    total_pago = df_pago['valor_pago_total'].sum()
+    qtd_pago = len(df_pago)
+    
+    # Estatísticas em cards compactos
     col1, col2, col3, col4 = st.columns(4)
-    
-    total_a_pagar = df_mes[df_mes['status_consolidado'] == 'A'].groupby('data_vencimento')['valor_em_aberto'].sum().sum()
-    total_pago = df_mes[df_mes['status_consolidado'] == 'F']['valor_pago_total'].sum()
-    qtd_a_pagar = len(df_mes[df_mes['status_consolidado'] == 'A'])
-    qtd_pago = len(df_mes[df_mes['status_consolidado'] == 'F'])
     
     with col1:
         st.markdown(f"""
@@ -234,7 +228,7 @@ if uploaded_file is not None:
     with col3:
         st.markdown(f"""
         <div class="stats-card">
-            <div class="stats-label">Contas a Pagar</div>
+            <div class="stats-label">Títulos a Pagar</div>
             <div class="stats-value pagar-color">{qtd_a_pagar}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -242,17 +236,15 @@ if uploaded_file is not None:
     with col4:
         st.markdown(f"""
         <div class="stats-card">
-            <div class="stats-label">Contas Pagas</div>
+            <div class="stats-label">Títulos Pagos</div>
             <div class="stats-value pago-color">{qtd_pago}</div>
         </div>
         """, unsafe_allow_html=True)
     
-    st.markdown("---")
-    
     # Criar calendário
     cal = calendar.monthcalendar(ano_selecionado, mes_selecionado)
     
-    # Header do calendário
+    # Container do calendário
     st.markdown(f"""
     <div class="calendar-container">
         <div class="calendar-header">
@@ -270,6 +262,10 @@ if uploaded_file is not None:
     # Data de hoje
     hoje = datetime.now().date()
     
+    # Inicializar session state para dia selecionado
+    if 'dia_selecionado' not in st.session_state:
+        st.session_state.dia_selecionado = None
+    
     # Renderizar semanas
     for semana in cal:
         cols = st.columns(7)
@@ -286,96 +282,106 @@ if uploaded_file is not None:
                     classe_hoje = "today" if data_dia == hoje else ""
                     
                     # Filtrar lançamentos do dia
-                    lancamentos_dia = df_mes[df_mes['data_vencimento'].dt.date == data_dia]
+                    lanc_dia = df_mes[df_mes['data_vencimento'].dt.date == data_dia]
+                    
+                    # Calcular totais do dia
+                    lanc_pagar = lanc_dia[lanc_dia['status_consolidado'] == 'A']
+                    lanc_pago = lanc_dia[lanc_dia['status_consolidado'] == 'F']
+                    
+                    total_dia_pagar = lanc_pagar['valor_em_aberto'].sum()
+                    qtd_dia_pagar = len(lanc_pagar)
+                    
+                    total_dia_pago = lanc_pago['valor_pago_total'].sum()
+                    qtd_dia_pago = len(lanc_pago)
                     
                     # Construir HTML do dia
                     html_dia = f'<div class="calendar-day {classe_hoje}">'
                     html_dia += f'<div class="day-number">{dia}</div>'
+                    html_dia += '<div class="day-summary">'
                     
-                    for _, lanc in lancamentos_dia.iterrows():
-                        fornecedor = str(lanc['fornecedor_nome'])[:25]
-                        documento = str(lanc['numero_documento']) if pd.notna(lanc['numero_documento']) else ""
-                        
-                        if lanc['status_consolidado'] == 'F':  # Pago
-                            valor = formatar_real(lanc['valor_pago_total'])
-                            html_dia += f'''
-                            <div class="item-pago" title="{fornecedor} - {documento}">
-                                <span class="fornecedor">{fornecedor}</span>
-                                <span class="documento">Doc: {documento}</span>
-                                <span class="valor-pago">{valor}</span>
-                            </div>
-                            '''
-                        else:  # A Pagar
-                            valor = formatar_real(lanc['valor_em_aberto'])
-                            html_dia += f'''
-                            <div class="item-pagar" title="{fornecedor} - {documento}">
-                                <span class="fornecedor">{fornecedor}</span>
-                                <span class="documento">Doc: {documento}</span>
-                                <span class="valor">{valor}</span>
-                            </div>
-                            '''
+                    if qtd_dia_pagar > 0:
+                        html_dia += f'<span class="summary-pagar">🔴 {qtd_dia_pagar} • {formatar_real(total_dia_pagar)}</span>'
                     
-                    html_dia += '</div>'
+                    if qtd_dia_pago > 0:
+                        html_dia += f'<span class="summary-pago">🟢 {qtd_dia_pago} • {formatar_real(total_dia_pago)}</span>'
+                    
+                    html_dia += '</div></div>'
+                    
+                    # Botão invisível para capturar clique
+                    if st.button(f" ", key=f"dia_{ano_selecionado}_{mes_selecionado}_{dia}", 
+                                help=f"Ver detalhes do dia {dia}"):
+                        st.session_state.dia_selecionado = data_dia
+                    
                     st.markdown(html_dia, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Legenda
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("""
-        <div style="display: flex; align-items: center; margin: 10px 0;">
-            <div style="width: 20px; height: 20px; background-color: #ffebee; border-left: 3px solid #f44336; margin-right: 10px;"></div>
-            <span>Contas a Pagar</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div style="display: flex; align-items: center; margin: 10px 0;">
-            <div style="width: 20px; height: 20px; background-color: #e8f5e9; border-left: 3px solid #4caf50; margin-right: 10px;"></div>
-            <span>Contas Pagas</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Tabela detalhada
-    st.markdown("---")
-    st.subheader("📊 Detalhes do Mês")
-    
-    # Preparar dados para exibição
-    df_display = df_mes[[
-        'data_vencimento', 'fornecedor_nome', 'numero_documento', 
-        'valor_em_aberto', 'valor_pago_total', 'status_consolidado'
-    ]].copy()
-    
-    df_display['data_vencimento'] = df_display['data_vencimento'].dt.strftime('%d/%m/%Y')
-    df_display['valor_em_aberto'] = df_display['valor_em_aberto'].apply(formatar_real)
-    df_display['valor_pago_total'] = df_display['valor_pago_total'].apply(formatar_real)
-    df_display['status_consolidado'] = df_display['status_consolidado'].map({
-        'A': '⏳ A Pagar',
-        'F': '✅ Pago'
-    })
-    
-    df_display.columns = ['Data Vencimento', 'Fornecedor', 'Documento', 
-                          'Valor a Pagar', 'Valor Pago', 'Status']
-    
-    # Ordenar por data
-    df_display = df_display.sort_values('Data Vencimento')
-    
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    # Mostrar detalhes do dia selecionado
+    if st.session_state.dia_selecionado:
+        data_sel = st.session_state.dia_selecionado
+        
+        st.markdown("---")
+        
+        col_titulo, col_fechar = st.columns([5, 1])
+        with col_titulo:
+            st.subheader(f"📅 Detalhes de {data_sel.strftime('%d/%m/%Y')}")
+        with col_fechar:
+            if st.button("✖ Fechar", key="fechar_detalhes"):
+                st.session_state.dia_selecionado = None
+                st.rerun()
+        
+        # Filtrar contas do dia
+        contas_dia = df_mes[df_mes['data_vencimento'].dt.date == data_sel]
+        
+        if len(contas_dia) > 0:
+            for _, conta in contas_dia.iterrows():
+                status = conta['status_consolidado']
+                classe = "conta-pagar" if status == 'A' else "conta-paga"
+                
+                fornecedor = conta['fornecedor_nome']
+                documento = conta['numero_documento'] if pd.notna(conta['numero_documento']) else "Sem documento"
+                
+                if status == 'F':
+                    valor = formatar_real(conta['valor_pago_total'])
+                    status_texto = "✅ PAGO"
+                    cor_status = "#4caf50"
+                else:
+                    valor = formatar_real(conta['valor_em_aberto'])
+                    status_texto = "⏳ A PAGAR"
+                    cor_status = "#f44336"
+                
+                observacao = conta['observacao'] if pd.notna(conta['observacao']) else ""
+                
+                st.markdown(f"""
+                <div class="conta-item {classe}">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; color: #1976d2; font-size: 16px;">{fornecedor}</div>
+                            <div style="color: #666; font-size: 13px; margin-top: 4px;">
+                                📄 Doc: {documento}
+                            </div>
+                            {f'<div style="color: #666; font-size: 12px; margin-top: 4px; font-style: italic;">{observacao}</div>' if observacao else ''}
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: {cor_status}; font-weight: 600;">{status_texto}</div>
+                            <div style="font-size: 20px; font-weight: bold; color: {cor_status}; margin-top: 4px;">{valor}</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhuma conta neste dia.")
 
 else:
-    st.info("👆 Por favor, faça upload de um arquivo CSV para visualizar o calendário de pagamentos.")
+    st.info("👆 Faça upload do arquivo CSV para visualizar o calendário")
     
     st.markdown("""
-    ### 📋 Formato esperado do CSV
-    
-    O arquivo deve conter as seguintes colunas principais:
-    - `fornecedor_nome`: Nome do fornecedor
-    - `numero_documento`: Número do documento
-    - `data_vencimento`: Data de vencimento
-    - `valor_em_aberto`: Valor a pagar
-    - `valor_pago_total`: Valor pago
-    - `status_consolidado`: Status (A = A Pagar, F = Pago)
+    ### 📋 Colunas necessárias no CSV:
+    - `fornecedor_nome`
+    - `numero_documento`
+    - `data_vencimento`
+    - `valor_em_aberto` (para contas a pagar)
+    - `valor_pago_total` (para contas pagas)
+    - `status_consolidado` (A = A Pagar, F = Pago, C = Cancelado)
+    - `observacao` (opcional)
     """)
