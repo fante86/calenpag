@@ -2,33 +2,41 @@ import streamlit as st
 import pandas as pd
 import calendar
 from datetime import datetime
+import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Calendário de Pagamentos", layout="wide", page_icon="💰")
+# ------------------------------
+# Configuração da página
+# ------------------------------
+st.set_page_config(page_title="Dashboard Financeiro de Pagamentos", layout="wide", page_icon="💰")
 
 st.markdown("""
 <style>
-    .main { background-color: #f8f9fa; padding-top: 1rem; }
-    .calendar-container { background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 1rem; }
-    .calendar-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; font-weight: bold; font-size: 20px; border-radius: 6px; margin-bottom: 10px; }
-    .day-header { background-color: #667eea; color: white; padding: 8px 4px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #5568d3; }
-    .calendar-day { border: 1px solid #dee2e6; padding: 6px; min-height: 80px; max-height: 80px; background-color: white; transition: all 0.2s; overflow: hidden; }
-    .calendar-day:hover { background-color: #f8f9fa; border-color: #667eea; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2); }
-    .day-number { font-weight: bold; font-size: 14px; color: #333; margin-bottom: 4px; }
-    .today { background-color: #fff9e6 !important; border: 2px solid #ffc107 !important; }
-    .day-summary { font-size: 10px; margin-top: 4px; }
-    .summary-pagar { background-color: #ffebee; color: #c62828; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0; font-weight: 600; }
-    .summary-pago { background-color: #e8f5e9; color: #2e7d32; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0; font-weight: 600; }
-    .stats-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; height: 100%; }
-    .stats-value { font-size: 24px; font-weight: bold; margin: 8px 0; }
-    .stats-label { color: #666; font-size: 13px; font-weight: 500; }
-    .pagar-color { color: #d32f2f; }
-    .pago-color { color: #388e3c; }
-    .conta-item { background-color: #f8f9fa; padding: 10px; margin: 8px 0; border-radius: 6px; border-left: 4px solid; }
-    .conta-pagar { border-left-color: #f44336; background-color: #ffebee; }
-    .conta-paga { border-left-color: #4caf50; background-color: #e8f5e9; }
+.main { background-color: #f8f9fa; padding-top: 1rem; }
+.calendar-container { background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 1rem; }
+.calendar-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; font-weight: bold; font-size: 20px; border-radius: 6px; margin-bottom: 10px; }
+.day-header { background-color: #667eea; color: white; padding: 8px 4px; text-align: center; font-weight: bold; font-size: 13px; border: 1px solid #5568d3; }
+.calendar-day { border: 1px solid #dee2e6; padding: 6px; min-height: 80px; max-height: 80px; background-color: white; transition: all 0.2s; overflow: hidden; }
+.calendar-day:hover { background-color: #f8f9fa; border-color: #667eea; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2); }
+.day-number { font-weight: bold; font-size: 14px; color: #333; margin-bottom: 4px; }
+.today { background-color: #fff9e6 !important; border: 2px solid #ffc107 !important; }
+.day-summary { font-size: 10px; margin-top: 4px; }
+.summary-pagar { background-color: #ffebee; color: #c62828; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0; font-weight: 600; }
+.summary-pago { background-color: #e8f5e9; color: #2e7d32; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0; font-weight: 600; }
+.stats-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; height: 100%; }
+.stats-value { font-size: 24px; font-weight: bold; margin: 8px 0; }
+.stats-label { color: #666; font-size: 13px; font-weight: 500; }
+.pagar-color { color: #d32f2f; }
+.pago-color { color: #388e3c; }
+.conta-item { background-color: #f8f9fa; padding: 10px; margin: 8px 0; border-radius: 6px; border-left: 4px solid; }
+.conta-pagar { border-left-color: #f44336; background-color: #ffebee; }
+.conta-paga { border-left-color: #4caf50; background-color: #e8f5e9; }
 </style>
 """, unsafe_allow_html=True)
 
+# ------------------------------
+# Funções auxiliares
+# ------------------------------
 def formatar_real(valor):
     try:
         return f"R$ {float(valor):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -36,15 +44,21 @@ def formatar_real(valor):
         return "R$ 0,00"
 
 def nome_mes_pt(mes):
-    meses = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",
-             9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+    meses = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
+             7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
     return meses.get(mes,"")
 
 def nomes_dias_semana():
     return ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
 
-st.title("💰 Calendário de Pagamentos")
+# ------------------------------
+# Título
+# ------------------------------
+st.title("💰 Dashboard Financeiro de Pagamentos")
 
+# ------------------------------
+# Upload CSV
+# ------------------------------
 uploaded_file = st.file_uploader("📂 Upload do CSV", type=['csv'], label_visibility="collapsed")
 
 if uploaded_file:
@@ -53,6 +67,7 @@ if uploaded_file:
     df['data_pagamento'] = pd.to_datetime(df['data_pagamento'], errors='coerce')
     df = df[(df['data_vencimento'].notna()) & (df['status_consolidado']!="Cancelado")].copy()
 
+    # Seleção mês/ano
     col1,col2,col3 = st.columns([1,1,3])
     anos_disponiveis = sorted(df['data_vencimento'].dt.year.unique())
     with col1: ano_selecionado = st.selectbox("Ano", anos_disponiveis, index=len(anos_disponiveis)-1)
@@ -60,9 +75,11 @@ if uploaded_file:
 
     df_mes = df[(df['data_vencimento'].dt.year==ano_selecionado) & (df['data_vencimento'].dt.month==mes_selecionado)].copy()
 
+    # ------------------------------
+    # Estatísticas
+    # ------------------------------
     df_a_pagar = df_mes[df_mes['status_consolidado']=='A Pagar']
     df_pago = df_mes[df_mes['status_consolidado']=='Pago']
-
     total_a_pagar = df_a_pagar['valor_em_aberto'].sum()
     total_pago = df_pago['valor_pago_total'].sum()
     qtd_a_pagar = len(df_a_pagar)
@@ -74,9 +91,67 @@ if uploaded_file:
     with col3: st.markdown(f"<div class='stats-card'><div class='stats-label'>Títulos a Pagar</div><div class='stats-value pagar-color'>{qtd_a_pagar}</div></div>", unsafe_allow_html=True)
     with col4: st.markdown(f"<div class='stats-card'><div class='stats-label'>Títulos Pagos</div><div class='stats-value pago-color'>{qtd_pago}</div></div>", unsafe_allow_html=True)
 
+    # ------------------------------
+    # GRÁFICO DIÁRIO
+    # ------------------------------
+    df_graf = df_mes.copy()
+    df_graf['dia'] = df_graf['data_vencimento'].dt.day
+    df_a_pagar_graf = df_graf[df_graf['status_consolidado']=='A Pagar'].groupby('dia')['valor_em_aberto'].sum().reset_index()
+    df_a_pagar_graf['Status'] = 'A Pagar'
+    df_pago_graf = df_graf[df_graf['status_consolidado']=='Pago'].groupby('dia')['valor_pago_total'].sum().reset_index()
+    df_pago_graf.rename(columns={'valor_pago_total':'valor_em_aberto'}, inplace=True)
+    df_pago_graf['Status'] = 'Pago'
+    df_plot_diario = pd.concat([df_a_pagar_graf, df_pago_graf], ignore_index=True)
+
+    fig_diario = px.bar(df_plot_diario, x='dia', y='valor_em_aberto', color='Status',
+                        labels={'dia':'Dia do Mês','valor_em_aberto':'Valor (R$)','Status':'Status'},
+                        text='valor_em_aberto', height=400)
+    fig_diario.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+    fig_diario.update_layout(barmode='stack', xaxis=dict(tickmode='linear'))
+    st.markdown("### 📊 Fluxo Diário de Pagamentos")
+    st.plotly_chart(fig_diario, use_container_width=True)
+
+    # ------------------------------
+    # GRÁFICO SEMANAL
+    # ------------------------------
+    df_graf['semana'] = df_graf['data_vencimento'].dt.isocalendar().week
+    df_a_pagar_semana = df_graf[df_graf['status_consolidado']=='A Pagar'].groupby('semana')['valor_em_aberto'].sum().reset_index()
+    df_a_pagar_semana['Status'] = 'A Pagar'
+    df_pago_semana = df_graf[df_graf['status_consolidado']=='Pago'].groupby('semana')['valor_pago_total'].sum().reset_index()
+    df_pago_semana.rename(columns={'valor_pago_total':'valor_em_aberto'}, inplace=True)
+    df_pago_semana['Status'] = 'Pago'
+    df_plot_semanal = pd.concat([df_a_pagar_semana, df_pago_semana], ignore_index=True)
+
+    fig_semanal = px.bar(df_plot_semanal, x='semana', y='valor_em_aberto', color='Status',
+                         labels={'semana':'Semana do Ano','valor_em_aberto':'Valor (R$)','Status':'Status'},
+                         text='valor_em_aberto', height=400)
+    fig_semanal.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+    fig_semanal.update_layout(barmode='stack', xaxis=dict(tickmode='linear'))
+    st.markdown("### 📊 Fluxo Semanal de Pagamentos")
+    st.plotly_chart(fig_semanal, use_container_width=True)
+
+    # ------------------------------
+    # GRÁFICO COMPARATIVO MENSAL
+    # ------------------------------
+    df_meses = df[df['data_vencimento'].dt.year==ano_selecionado].copy()
+    df_mes_pago = df_meses[df_meses['status_consolidado']=='Pago'].groupby(df_meses['data_vencimento'].dt.month)['valor_pago_total'].sum().reset_index()
+    df_mes_pago.rename(columns={'data_vencimento':'Mes', 'valor_pago_total':'Pago'}, inplace=True)
+    df_mes_apagar = df_meses[df_meses['status_consolidado']=='A Pagar'].groupby(df_meses['data_vencimento'].dt.month)['valor_em_aberto'].sum().reset_index()
+    df_mes_apagar.rename(columns={'data_vencimento':'Mes', 'valor_em_aberto':'A Pagar'}, inplace=True)
+    df_plot_mensal = pd.merge(df_mes_apagar, df_mes_pago, left_on='Mes', right_on='Mes', how='outer').fillna(0).sort_values('Mes')
+
+    fig_mensal = go.Figure()
+    fig_mensal.add_trace(go.Bar(x=[nome_mes_pt(m) for m in df_plot_mensal['Mes']], y=df_plot_mensal['A Pagar'], name='A Pagar', marker_color='#d32f2f'))
+    fig_mensal.add_trace(go.Bar(x=[nome_mes_pt(m) for m in df_plot_mensal['Mes']], y=df_plot_mensal['Pago'], name='Pago', marker_color='#388e3c'))
+    fig_mensal.update_layout(barmode='group', height=400, yaxis_title='Valor (R$)')
+    st.markdown("### 📊 Comparativo Mensal de Pagamentos")
+    st.plotly_chart(fig_mensal, use_container_width=True)
+
+    # ------------------------------
+    # CALENDÁRIO INTERATIVO
+    # ------------------------------
     cal = calendar.monthcalendar(ano_selecionado, mes_selecionado)
     st.markdown(f"<div class='calendar-container'><div class='calendar-header'>{nome_mes_pt(mes_selecionado)} de {ano_selecionado}</div>", unsafe_allow_html=True)
-
     dias_semana = nomes_dias_semana()
     cols_header = st.columns(7)
     for i,dia in enumerate(dias_semana):
@@ -115,6 +190,9 @@ if uploaded_file:
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # ------------------------------
+    # Detalhes do dia selecionado
+    # ------------------------------
     if st.session_state.dia_selecionado:
         data_sel = st.session_state.dia_selecionado
         st.markdown("---")
@@ -136,7 +214,6 @@ if uploaded_file:
                 planejamento = conta['descricao_planejamento'] if pd.notna(conta['descricao_planejamento']) else ""
                 observacao = conta['observacao'] if pd.notna(conta['observacao']) else ""
 
-                # CORREÇÃO: cada um independente
                 observacao_html = f'<div style="color:#666;font-size:12px;margin-top:4px;font-style:italic;">{observacao}</div>' if observacao.strip() else ''
                 planejamento_html = f'<div style="color:#444;font-size:12px;margin-top:2px;font-style:italic;">📌 Planejamento: {planejamento}</div>' if planejamento.strip() else ''
                 detalhes_html = observacao_html + planejamento_html
@@ -169,16 +246,16 @@ if uploaded_file:
             st.info("Nenhuma conta neste dia.")
 
 else:
-    st.info("👆 Faça upload do arquivo CSV para visualizar o calendário")
+    st.info("👆 Faça upload do arquivo CSV para visualizar o dashboard")
     st.markdown("""
     ### 📋 Colunas necessárias no CSV:
     - `fornecedor_nome`
     - `numero_documento`
     - `data_vencimento`
-    - `valor_em_aberto`
-    - `valor_pago_total`
+    - `valor_em_aberto` (para contas a pagar)
+    - `valor_pago_total` (para contas pagas)
     - `status_consolidado` ("A Pagar", "Pago", "Cancelado")
     - `observacao` (opcional)
-    - `conta_financeira`
-    - `descricao_planejamento`
+    - `conta_financeira` (opcional)
+    - `descricao_planejamento` (opcional)
     """)
