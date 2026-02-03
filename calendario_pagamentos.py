@@ -164,16 +164,11 @@ if uploaded_file is not None:
     df['data_pagamento'] = pd.to_datetime(df['data_pagamento'], errors='coerce')
     
     # Filtrar apenas registros válidos (não cancelados e com data de vencimento)
+    # O status está como "A Pagar", "Pago", "Cancelado" (por extenso)
     df = df[
         (df['data_vencimento'].notna()) & 
-        (df['status_consolidado'] != 'C')  # Excluir cancelados
+        (df['status_consolidado'] != 'Cancelado')  # Excluir cancelados
     ].copy()
-    
-    # Criar coluna de status simplificado
-    df['status_simples'] = df['status_consolidado'].map({
-        'A': 'A Pagar',
-        'F': 'Pago'
-    })
     
     # Seleção de mês e ano em uma linha
     col1, col2, col3 = st.columns([1, 1, 3])
@@ -196,13 +191,13 @@ if uploaded_file is not None:
     ].copy()
     
     # Calcular estatísticas CORRETAS
-    # A Pagar: status_consolidado = 'A' e usar valor_em_aberto
-    df_a_pagar = df_mes[df_mes['status_consolidado'] == 'A']
+    # A Pagar: status_consolidado = 'A Pagar' e usar valor_em_aberto
+    df_a_pagar = df_mes[df_mes['status_consolidado'] == 'A Pagar']
     total_a_pagar = df_a_pagar['valor_em_aberto'].sum()
     qtd_a_pagar = len(df_a_pagar)
     
-    # Pago: status_consolidado = 'F' e usar valor_pago_total
-    df_pago = df_mes[df_mes['status_consolidado'] == 'F']
+    # Pago: status_consolidado = 'Pago' e usar valor_pago_total
+    df_pago = df_mes[df_mes['status_consolidado'] == 'Pago']
     total_pago = df_pago['valor_pago_total'].sum()
     qtd_pago = len(df_pago)
     
@@ -267,7 +262,7 @@ if uploaded_file is not None:
         st.session_state.dia_selecionado = None
     
     # Renderizar semanas
-    for semana in cal:
+    for idx_semana, semana in enumerate(cal):
         cols = st.columns(7)
         
         for i, dia in enumerate(semana):
@@ -285,8 +280,8 @@ if uploaded_file is not None:
                     lanc_dia = df_mes[df_mes['data_vencimento'].dt.date == data_dia]
                     
                     # Calcular totais do dia
-                    lanc_pagar = lanc_dia[lanc_dia['status_consolidado'] == 'A']
-                    lanc_pago = lanc_dia[lanc_dia['status_consolidado'] == 'F']
+                    lanc_pagar = lanc_dia[lanc_dia['status_consolidado'] == 'A Pagar']
+                    lanc_pago = lanc_dia[lanc_dia['status_consolidado'] == 'Pago']
                     
                     total_dia_pagar = lanc_pagar['valor_em_aberto'].sum()
                     qtd_dia_pagar = len(lanc_pagar)
@@ -307,12 +302,13 @@ if uploaded_file is not None:
                     
                     html_dia += '</div></div>'
                     
-                    # Botão invisível para capturar clique
-                    if st.button(f" ", key=f"dia_{ano_selecionado}_{mes_selecionado}_{dia}", 
-                                help=f"Ver detalhes do dia {dia}"):
-                        st.session_state.dia_selecionado = data_dia
-                    
                     st.markdown(html_dia, unsafe_allow_html=True)
+                    
+                    # Botão invisível para capturar clique (posicionado sobre o dia)
+                    if st.button("📅", key=f"btn_{ano_selecionado}_{mes_selecionado}_{dia}", 
+                                help=f"Ver detalhes do dia {dia}", use_container_width=True):
+                        st.session_state.dia_selecionado = data_dia
+                        st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -336,12 +332,12 @@ if uploaded_file is not None:
         if len(contas_dia) > 0:
             for _, conta in contas_dia.iterrows():
                 status = conta['status_consolidado']
-                classe = "conta-pagar" if status == 'A' else "conta-paga"
+                classe = "conta-pagar" if status == 'A Pagar' else "conta-paga"
                 
                 fornecedor = conta['fornecedor_nome']
                 documento = conta['numero_documento'] if pd.notna(conta['numero_documento']) else "Sem documento"
                 
-                if status == 'F':
+                if status == 'Pago':
                     valor = formatar_real(conta['valor_pago_total'])
                     status_texto = "✅ PAGO"
                     cor_status = "#4caf50"
@@ -382,6 +378,6 @@ else:
     - `data_vencimento`
     - `valor_em_aberto` (para contas a pagar)
     - `valor_pago_total` (para contas pagas)
-    - `status_consolidado` (A = A Pagar, F = Pago, C = Cancelado)
+    - `status_consolidado` ("A Pagar", "Pago", "Cancelado")
     - `observacao` (opcional)
     """)
